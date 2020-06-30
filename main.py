@@ -8,25 +8,25 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait as WDW
-import sys
+
 import os
 import time
 from io import BytesIO
 from PIL import Image
 from PIL import ImageFilter
 from PIL import ImageEnhance
-from webdriver_manager.chrome import ChromeDriverManager
+import sys
+
 import requests
 import logging
-import urllib
-
-#logging.basicConfig(level=logging.DEBUG,format='(%(funcName)-10s) %(message)s')
+download_dir = 'Z:\\'
 logging.basicConfig(level=logging.ERROR,
-                    format='(%(funcName)-10s) %(message)s')                    
+                    format='(%(funcName)-10s) %(message)s')
 cur_path = os.getcwd()
-download_dir='Z:\\'
+
 # initial environment
 tes_path = 'E:/tesseract-v5.0.0/tessdata'
+download_dir = 'i:\\11\\'
 tph = tes_path + ';' + os.getenv('PATH')
 os.environ['PATH'] = tph
 os.environ['TESSDATA_PREFIX'] = tes_path
@@ -34,8 +34,9 @@ is_python3 = sys.version_info.major == 3
 if is_python3:
     unicode = str
 
-#sys._MEIPASS = 'D:\\Programs\\tesseract-ocr'
-#sys.frozen = True
+
+# sys._MEIPASS = 'D:\\Programs\\tesseract-ocr'
+# sys.frozen = True
 """
 Tesseract可以被赋予一个页面模式参数（-psm），它可以有以下值：
 
@@ -164,20 +165,13 @@ class sv_captcha(object):
     workdir = ''
 
     def __init__(self, server_url, taskname='', browser=None):
-        profile = webdriver.FirefoxProfile()
-        global download_dir
-        profile.set_preference("browser.download.dir", download_dir)
-        profile.set_preference("browser.download.folderList", 2)
-        profile.set_preference("browser.download.useDownloadDir", True)
-        profile.set_preference(
-            "browser.download.manager.showWhenStarting", False)
-        profile.set_preference("browser.helperApps.alwaysAsk.force", False)
-        profile.set_preference(
-            "browser.helperApps.neverAsk.saveToDisk", 'application/zip')
         self.taskname = taskname
         self.page = server_url
         self.cindex = 1
-        self.browser = browser or webdriver.Firefox(profile)
+        profile = {'download.default_directory': download_dir}
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_experimental_option('prefs', profile)
+        self.browser = browser or webdriver.Chrome( options=chrome_options)
 
     def startpage(self, checkid=""):
         self.browser.get(self.page)
@@ -213,6 +207,16 @@ class sv_captcha(object):
     def close(self):
         self.browser.close()
 
+def every_downloads_chrome(driver):
+    if not driver.current_url.startswith("chrome://downloads"):
+        driver.get("chrome://downloads/")
+    return driver.execute_script("""
+        return document.querySelector('downloads-manager')
+        .shadowRoot.querySelector('#downloadsList')
+        .items.filter(e => e.state === 'COMPLETE')
+        .map(e => e.filePath || e.file_path || e.fileUrl || e.file_url);
+        """)
+
 
 class yifile(sv_captcha):
     workdir = cur_path
@@ -227,8 +231,8 @@ class yifile(sv_captcha):
             start_btn = start_btn[0] if isinstance(
                 start_btn, list) else start_btn
             start_btn.click()
-        #start_btn = self.browser.find_element_by_xpath('//*[@id="FVIEW"]/div[3]/table/tbody/tr[4]/td[2]/a')
-        time.sleep(31)
+        # start_btn = self.browser.find_element_by_xpath('//*[@id="FVIEW"]/div[3]/table/tbody/tr[4]/td[2]/a')
+        time.sleep(29)
         checker = self.browser.find_elements_by_id('bootyz3')
         checker = checker[0] if isinstance(checker, list) else checker
         for x in range(10):
@@ -245,7 +249,6 @@ class yifile(sv_captcha):
         return True
 
     def __sendcode(self, keys):
-        print(keys)
         self.browser.execute_script(
             'document.getElementById("verycode").value="%s"' % keys)
         self.browser.execute_script('downboot()')
@@ -257,7 +260,7 @@ class yifile(sv_captcha):
             return False
         except selenium.common.exceptions.TimeoutException:
             # no alert
-            return False
+            return True
 
     def __getlink(self):
         linker = self.browser.find_elements_by_xpath(
@@ -279,13 +282,9 @@ class yifile(sv_captcha):
         if not (os.path.exists(download_dir+file_name)):
             self.browser.find_element_by_xpath(
                 '//*[@id="FVIEW"]/div[3]/table/tbody/tr[4]/td[2]/span[2]').click()
-        gg=1
-        while(gg):
-            if not (os.path.exists(download_dir+file_name+'.part')):
-                break
-            gg=gg+10
-            print(str(gg)+download_dir+file_name+'.part')
-            time.sleep(10)
+        gg = 1
+        paths = WDW(self.browser, 12000000000, 10).until(every_downloads_chrome)
+        print(paths)
         return url
 
     def get_captcha(self, limit=0):
@@ -307,9 +306,9 @@ class yifile(sv_captcha):
             # <img />: screenshot_as_png property png data
             imgf = os.path.join(cur_path, self.taskname +
                                 str(self.cindex) + '.png')
-            #r = requests.get(u)
-            #im = Image.open(BytesIO(r.content))
-            #im = yifile_png(im)
+            # r = requests.get(u)
+            # im = Image.open(BytesIO(r.content))
+            # im = yifile_png(im)
             # with open(imgf, 'wb') as f:
             #    f.write(im)
             im = captcha(im).optimize()
@@ -338,7 +337,6 @@ while index != len(lines):
         yf1.startpage('bootyz3')
         yf1.get_captcha(110)
 
-        
         index = index+1
     except Exception as e:
         print(e)
