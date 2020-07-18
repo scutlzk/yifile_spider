@@ -333,7 +333,8 @@ lines = fp.readlines()
 index = 0
 while index != len(lines):
     try:
-        yf1 = yifile(lines[index], 'test')
+        url=lines[index].split()
+        yf1 = yifile(url[0], 'test')
         yf1.startpage('bootyz3')
         yf1.get_captcha(110)
 
